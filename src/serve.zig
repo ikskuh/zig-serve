@@ -1,8 +1,13 @@
 const std = @import("std");
+const uri = @import("uri");
 const network = @import("network");
 
+pub const Url = uri.UriComponents;
+
 pub const TlsCore = @import("TlsCore.zig");
+pub const TlsClient = TlsCore.TlsClient;
 pub usingnamespace @import("gopher.zig");
+pub usingnamespace @import("gemini.zig");
 
 pub const initTls = TlsCore.startup;
 pub const deinitTls = TlsCore.shutdown;

@@ -1,7 +1,7 @@
 const std = @import("std");
 const network = @import("network");
 const serve = @import("serve.zig");
-const logger = std.log.scoped(.gopher);
+const logger = std.log.scoped(.serve_gopher);
 
 pub const GopherListener = struct {
     const Binding = struct {
@@ -168,9 +168,10 @@ pub const GopherContext = struct {
     response: GopherResponse,
 
     fn finalize(self: *GopherContext) !void {
-        var writer = self.response.buffered_stream.writer();
-        try writer.writeAll("\r\n.\r\n");
-
+        if (self.response.is_binary) {
+            var writer = self.response.buffered_stream.writer();
+            try writer.writeAll("\r\n.\r\n");
+        }
         try self.response.buffered_stream.flush();
     }
 

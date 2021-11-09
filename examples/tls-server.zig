@@ -43,9 +43,6 @@ pub fn main() !void {
         const remote = child.getRemoteEndPoint() catch undefined;
         logger.info("new client from {}.", .{remote});
 
-        // var reader = child.reader();
-        // var writer = child.writer();
-
         var tls_client = try tls_server.accept(&child);
         defer tls_client.close();
 

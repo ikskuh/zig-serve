@@ -25,7 +25,7 @@ pub fn build(b: *std.build.Builder) void {
 
     const enable_gopher = b.option(bool, "enable-gopher", "Enables building the gopher example") orelse true;
     const enable_http = b.option(bool, "enable-http", "Enables building the http example") orelse false;
-    const enable_gemini = b.option(bool, "enable-gemini", "Enables building the gemini example") orelse false;
+    const enable_gemini = b.option(bool, "enable-gemini", "Enables building the gemini example") orelse true;
 
     {
         const tls_server_exe = b.addExecutable("tls-server", "examples/tls-server.zig");
@@ -35,6 +35,7 @@ pub fn build(b: *std.build.Builder) void {
         tls_server_exe.addPackage(pkgs.network);
         tls_server_exe.linkLibrary(wolfSSL);
         tls_server_exe.addIncludeDir("vendor/wolfssl");
+        tls_server_exe.linkLibC();
         tls_server_exe.install();
     }
 
@@ -62,6 +63,8 @@ pub fn build(b: *std.build.Builder) void {
         gemini_exe.setBuildMode(mode);
         gemini_exe.addPackage(pkgs.serve);
         gemini_exe.addPackage(pkgs.network);
+        gemini_exe.addIncludeDir("vendor/wolfssl");
+        gemini_exe.linkLibrary(wolfSSL);
         gemini_exe.install();
     }
 }
@@ -101,6 +104,10 @@ fn createWolfSSL(b: *std.build.Builder, target: std.zig.CrossTarget) *std.build.
     lib.defineCMacro("HAVE_FFDHE_8192", null);
     lib.defineCMacro("HAVE_ONE_TIME_AUTH", null);
     lib.defineCMacro("HAVE_SYS_TIME_H", null);
+    lib.defineCMacro("SESSION_INDEX", null);
+    lib.defineCMacro("SESSION_CERTS", null);
+    lib.defineCMacro("OPENSSL_EXTRA_X509", null);
+    lib.defineCMacro("OPENSSL_EXTRA_X509_SMALL", null);
     lib.linkLibC();
 
     return lib;
