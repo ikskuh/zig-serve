@@ -246,7 +246,7 @@ pub const Certificate = struct {
 fn makeWolfError(err_code: c_int) error{WolfSSL} {
     var name_buf: [c.WOLFSSL_MAX_ERROR_SZ + 1]u8 = undefined;
     const error_name = std.mem.sliceTo(
-        @as(?[*:0]const u8, c.wolfSSL_ERR_error_string(@intCast(c_ulong, -err_code), &name_buf)) orelse "unknown",
+        @as(?[*:0]const u8, c.wolfSSL_ERR_error_string(std.math.cast(c_ulong, -err_code) catch 0, &name_buf)) orelse "unknown",
         0,
     );
     const error_enum = std.meta.intToEnum(wolfSSL_ErrorCodes, err_code) catch @as(?wolfSSL_ErrorCodes, null);
@@ -267,31 +267,65 @@ fn wolfCheck(err_code: c_int) error{WolfSSL}!void {
 /// PicoTCP send/receive callbacks */
 fn zigSend(ssl: ?*c.WOLFSSL, buf: [*c]u8, len: c_int, ctx: ?*c_void) callconv(.C) c_int {
     _ = ssl;
+    if (len == 0)
+        return 0;
 
     const sock = @ptrCast(*network.Socket, @alignCast(@alignOf(network.Socket), ctx.?));
 
     const actual_len = sock.send(buf[0..@intCast(usize, len)]) catch |err| {
-        logger.err("socket: {}", .{err});
-        return c.WOLFSSL_CBIO_ERR_WANT_WRITE;
+        logger.err("socket send: {}", .{err});
+
+        return switch (err) {
+            error.ConnectionResetByPeer => c.WOLFSSL_CBIO_ERR_CONN_RST,
+            error.WouldBlock => c.WOLFSSL_CBIO_ERR_WANT_READ,
+
+            // Fallback error
+            error.SystemResources, error.MessageTooBig, error.NetworkSubsystemFailed, error.Unexpected, error.AccessDenied, error.BrokenPipe, error.NetworkUnreachable, error.AddressNotAvailable => c.WOLFSSL_CBIO_ERR_GENERAL,
+            // Impossible errors
+            error.SocketNotConnected, error.FastOpenAlreadyInProgress, error.FileDescriptorNotASocket, error.AddressFamilyNotSupported, error.SymLinkLoop, error.NameTooLong, error.FileNotFound, error.NotDir => unreachable,
+        };
     };
+    if (actual_len == 0)
+        return c.WOLFSSL_CBIO_ERR_CONN_CLOSE;
 
     return @intCast(c_int, actual_len);
 }
 
 fn zigRecv(ssl: ?*c.WOLFSSL, buf: [*c]u8, len: c_int, ctx: ?*c_void) callconv(.C) c_int {
     _ = ssl;
+    if (len == 0)
+        return 0;
 
     const sock = @ptrCast(*network.Socket, @alignCast(@alignOf(network.Socket), ctx.?));
 
     const actual_len = sock.receive(buf[0..@intCast(usize, len)]) catch |err| {
-        logger.err("socket: {}", .{err});
-        return c.WOLFSSL_CBIO_ERR_WANT_READ;
+        logger.err("socket receive: {}", .{err});
+
+        return switch (err) {
+            error.ConnectionResetByPeer => c.WOLFSSL_CBIO_ERR_CONN_RST,
+            error.WouldBlock => c.WOLFSSL_CBIO_ERR_WANT_READ,
+
+            // Fallback error
+            error.SystemResources, error.MessageTooBig, error.NetworkSubsystemFailed, error.Unexpected => c.WOLFSSL_CBIO_ERR_GENERAL,
+            // Impossible errors
+            error.ConnectionRefused, error.SocketNotBound, error.SocketNotConnected => unreachable,
+        };
     };
 
+    if (actual_len == 0)
+        return c.WOLFSSL_CBIO_ERR_CONN_CLOSE;
     return @intCast(c_int, actual_len);
 }
 
 const wolfSSL_ErrorCodes = enum(c_int) {
+    WOLFSSL_CBIO_ERR_GENERAL = -1,
+    WOLFSSL_CBIO_ERR_WANT_READ_WRITE = -2,
+    // WOLFSSL_CBIO_ERR_WANT_WRITE = -2,
+    WOLFSSL_CBIO_ERR_CONN_RST = -3,
+    WOLFSSL_CBIO_ERR_ISR = -4,
+    WOLFSSL_CBIO_ERR_CONN_CLOSE = -5,
+    WOLFSSL_CBIO_ERR_TIMEOUT = -6,
+
     OPEN_RAN_E = -101, // opening random device error */
     READ_RAN_E = -102, // reading random device error */
     WINCRYPT_E = -103, // windows crypt init error */

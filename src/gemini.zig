@@ -151,6 +151,8 @@ pub const GeminiListener = struct {
         var client_sock: network.Socket = try sock.accept();
         errdefer client_sock.close();
 
+        logger.debug("accepted tcp connection from {}", .{client_sock.getRemoteEndPoint()});
+
         var temp_memory = std.heap.ArenaAllocator.init(self.allocator);
         errdefer temp_memory.deinit();
 
@@ -170,6 +172,8 @@ pub const GeminiListener = struct {
 
         context.response.ssl = try tls.accept(&context.response.socket);
         errdefer context.response.ssl.close();
+
+        logger.debug("accepted tls connection", .{});
 
         context.request.client_certificate = try context.response.ssl.getPeerCertificate();
 
@@ -207,6 +211,8 @@ pub const GeminiContext = struct {
 
     pub fn deinit(self: *GeminiContext) void {
         self.finalize() catch |e| logger.warn("Failed to finalize connection: {s}", .{@errorName(e)});
+
+        logger.debug("closing tcp connection to {}", .{self.response.socket.getRemoteEndPoint()});
 
         self.response.ssl.close();
         self.response.socket.close();
