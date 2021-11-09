@@ -94,7 +94,7 @@ pub const GopherListener = struct {
     }
 
     const GetContextError = std.os.PollError || std.os.AcceptError || network.Socket.Reader.Error || error{ UnsupportedAddressFamily, NotStarted, OutOfMemory, EndOfStream, StreamTooLong };
-    pub fn getContext(self: *GopherListener) GetContextError!GopherContext {
+    pub fn getContext(self: *GopherListener) GetContextError!*GopherContext {
         for (self.bindings.items) |*bind| {
             if (bind.socket == null)
                 return error.NotStarted;
@@ -128,11 +128,11 @@ pub const GopherListener = struct {
         }
     }
 
-    fn acceptContext(self: *GopherListener, sock: network.Socket) !GopherContext {
+    fn acceptContext(self: *GopherListener, sock: network.Socket) !*GopherContext {
         var client_sock: network.Socket = try sock.accept();
         errdefer client_sock.close();
 
-        var url_buffer: [2048]u8 = undefined;
+        var url_buffer: [4096]u8 = undefined;
 
         var reader = client_sock.reader();
         var path = try reader.readUntilDelimiter(&url_buffer, '\n');
@@ -141,8 +141,12 @@ pub const GopherListener = struct {
 
         logger.info("request for {s}", .{path});
 
-        var context = GopherContext{
-            .memory = std.heap.ArenaAllocator.init(self.allocator),
+        var temp_arena = std.heap.ArenaAllocator.init(self.allocator);
+
+        const context = try temp_arena.allocator.create(GopherContext);
+
+        context.* = GopherContext{
+            .memory = temp_arena,
             .request = undefined,
             .response = undefined,
         };
@@ -180,7 +184,6 @@ pub const GopherContext = struct {
 
         self.response.socket.close();
         self.memory.deinit();
-        self.* = undefined;
     }
 };
 
@@ -210,3 +213,84 @@ pub const GopherResponse = struct {
         return self.buffered_stream.writer();
     }
 };
+
+pub fn gopherMap(writer: anytype, hostname: []const u8, port: u16) GopherMap(@TypeOf(writer)) {
+    return GopherMap(@TypeOf(writer)){
+        .writer = writer,
+        .hostname = hostname,
+        .port = port,
+    };
+}
+
+pub fn GopherMap(comptime Writer: type) type {
+    return struct {
+        const Self = @This();
+
+        writer: Writer,
+        hostname: []const u8,
+        port: u16 = 70,
+
+        pub fn entry(map: Self, data: Entry) !void {
+            const hostname = data.hostname orelse map.hostname;
+            const port = data.port orelse map.port;
+            try map.writer.print("{c}{s}\t{s}\t{s}\t{d}\r\n", .{
+                @enumToInt(data.kind),
+                data.display,
+                data.selector,
+                hostname,
+                port,
+            });
+        }
+
+        pub fn info(self: Self, msg: []const u8) !void {
+            try self.entry(Entry{
+                .kind = .informational,
+                .display = msg,
+                .selector = "",
+            });
+        }
+
+        pub fn print(map: Self, comptime fmt: []const u8, args: anytype) !void {
+            try map.writer.writeAll("i");
+            try map.writer.print(fmt, args);
+            try map.writer.print("\t\t{s}\t{}\r\n", .{
+                map.hostname,
+                map.port,
+            });
+        }
+
+        pub const Entry = struct {
+            kind: EntryKind,
+            display: []const u8,
+            selector: []const u8,
+            hostname: ?[]const u8 = null,
+            port: ?u16 = null,
+        };
+
+        pub const EntryKind = enum(u8) {
+            text = '0', // Text file
+            submenu = '1', // Gopher submenu
+            ccso_nameserver = '2', // CCSO Nameserver
+            error_code = '3', // Error code returned by a Gopher server to indicate failure
+            bin_hex = '4', // BinHex-encoded file (primarily for Macintosh computers)
+            dos_file = '5', // DOS file
+            uuencoded = '6', // uuencoded file
+            full_text_search = '7', // Gopher full-text search
+            telnet = '8', // Telnet
+            binary = '9', // Binary file
+            alternate_server = '+', // Mirror or alternate server (for load balancing or in case of primary server downtime)
+            gif = 'g', // GIF file
+            image = 'I', // Image file
+            telnet_3270 = 'T', // Telnet 3270
+            // gopher+ types
+            bitmap = ':', // Bitmap image
+            movie = ';', // Movie file
+            sound = '<', // Sound file
+            // Non-canonical types
+            document = 'd', // Doc. Seen used alongside PDF's and .DOC's
+            html = 'h', // HTML file
+            informational = 'i', // Informational message, widely used.[23]
+            wav = 's', // Sound file (especially the WAV format)
+        };
+    };
+}

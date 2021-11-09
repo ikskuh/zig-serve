@@ -36,11 +36,18 @@ pub fn main() !void {
 
         try context.response.setStatusCode(.success);
 
-        if (std.mem.eql(u8, "/source.zig", context.request.url.path orelse "")) {
+        const requested_path = context.request.url.path orelse "";
+
+        if (std.mem.eql(u8, requested_path, "/source.zig")) {
             try context.response.setMeta("text/zig");
 
             var stream = try context.response.writer();
             try stream.writeAll(@embedFile(@src().file));
+        } else if (std.mem.eql(u8, requested_path, "/cat")) {
+            try context.response.setMeta("image/gif");
+
+            var stream = try context.response.writer();
+            try stream.writeAll(@embedFile("data/cat.gif"));
         } else {
             try context.response.setMeta("text/gemini");
 
@@ -55,6 +62,9 @@ pub fn main() !void {
                 \\Check out these projects:
                 \\=> https://github.com/ziglang/zig ⚡️ Ziglang
                 \\=> https://github.com/wolfSSL/wolfssl 🐺 WolfSSL
+                \\
+                \\Also, look at this picture of a cat:
+                \\=> /cat Cat Picture
                 \\
                 \\
             );

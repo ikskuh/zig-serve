@@ -16,12 +16,11 @@ pub fn main() !void {
     defer listener.deinit();
 
     try listener.addEndpoint(.{ .ipv4 = .{ 0, 0, 0, 0 } }, 80);
-
     try listener.addSecureEndpoint(
         .{ .ipv4 = .{ 0, 0, 0, 0 } },
         443,
-        @embedFile("certificate.crt"),
-        @embedFile("private-key.key"),
+        "examples/data/cert.pem",
+        "examples/data/key.pem",
         .{},
     );
 
@@ -38,5 +37,11 @@ pub fn main() !void {
         var stream = try context.response.writer();
         try stream.writeAll("Hello, World!\r\n");
         try stream.print("You requested the url {}", .{context.request.url});
+        try stream.writeAll("Other headers are:\n");
+
+        var it = context.response.headers.iterator();
+        while (it.next()) |header| {
+            try stream.print("{s}: {s}", .{ header.key_ptr.*, header.value_ptr.* });
+        }
     }
 }
