@@ -71,6 +71,14 @@ pub fn main() !void {
                 try stream.print("* {s}: " ++ field_format ++ "\n", .{ fld.name, @field(context.request.url, fld.name) });
             }
 
+            if (context.request.requested_server_name) |name| {
+                try stream.print("Client wants to access this server:\n```sni\n{s}\n```\n", .{name});
+            }
+
+            if (context.request.client_certificate) |cert| {
+                try stream.print("Client sent this certificate:\n```certificate\n{}\n```\n", .{cert});
+            }
+
             try stream.writeAll(
                 \\
                 \\=> /source.zig Also, check out the source code of this!

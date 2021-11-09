@@ -151,14 +151,16 @@ pub const GeminiListener = struct {
         var client_sock: network.Socket = try sock.accept();
         errdefer client_sock.close();
 
-        var memory = std.heap.ArenaAllocator.init(self.allocator);
-        errdefer memory.deinit();
+        var temp_memory = std.heap.ArenaAllocator.init(self.allocator);
+        errdefer temp_memory.deinit();
 
-        const context = try memory.allocator.create(GeminiContext);
+        const context = try temp_memory.allocator.create(GeminiContext);
         context.* = GeminiContext{
-            .memory = memory,
+            .memory = temp_memory,
             .request = GeminiRequest{
                 .url = undefined,
+                .requested_server_name = null,
+                .client_certificate = null,
             },
             .response = GeminiResponse{
                 .socket = client_sock,
@@ -169,9 +171,9 @@ pub const GeminiListener = struct {
         context.response.ssl = try tls.accept(&context.response.socket);
         errdefer context.response.ssl.close();
 
-        const chain = context.response.ssl.getPeerChain() catch null;
+        context.request.client_certificate = try context.response.ssl.getPeerCertificate();
 
-        std.debug.print("peer chain: {}\n", .{chain});
+        context.request.requested_server_name = try context.response.ssl.getServerNameIndication(&context.memory.allocator);
 
         var url_buffer: [2048]u8 = undefined;
 
@@ -214,6 +216,8 @@ pub const GeminiContext = struct {
 
 pub const GeminiRequest = struct {
     url: uri.UriComponents,
+    client_certificate: ?serve.TlsCore.Certificate,
+    requested_server_name: ?[]const u8,
 };
 
 pub const GeminiResponse = struct {

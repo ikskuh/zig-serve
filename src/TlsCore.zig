@@ -50,7 +50,7 @@ pub fn usePrivateKeyFile(self: *TlsCore, file_name: [:0]const u8) !void {
     try wolfCheck(c.wolfSSL_CTX_use_PrivateKey_file(self.ctx, file_name.ptr, c.SSL_FILETYPE_PEM));
 }
 
-pub fn accept(self: *TlsCore, socket: *network.Socket) !TlsClient {
+pub fn accept(self: *TlsCore, socket: *network.Socket) !Client {
     const ssl = c.wolfSSL_new(self.ctx) orelse return error.OutOfMemory;
     errdefer c.wolfSSL_free(ssl); // Free the wolfSSL object              */
 
@@ -71,7 +71,7 @@ pub fn accept(self: *TlsCore, socket: *network.Socket) !TlsClient {
         }
     }
 
-    return TlsClient{
+    return Client{
         .ssl = ssl,
     };
 }
@@ -187,19 +187,23 @@ fn verifyFn(some: c_int, certificate_store_ctx: [*c]c.WOLFSSL_X509_STORE_CTX) ca
 //     return (myVerifyAction == VERIFY_OVERRIDE_ERROR) ? 1 : preverify;
 // }
 
-pub const TlsClient = struct {
+pub const Client = struct {
     ssl: *c.WOLFSSL,
 
-    pub fn getSession(self: TlsClient) !*c.WOLFSSL_SESSION {
-        return c.wolfSSL_get_session(self.ssl) orelse error.NoSession;
+    pub fn getPeerCertificate(self: Client) !?Certificate {
+        _ = self;
+        // TODO: Implement certificate handling
+        return null;
     }
 
-    pub fn getPeerChain(self: TlsClient) !*c.WOLFSSL_X509_CHAIN {
-        const sess = try self.getSession();
-        return c.wolfSSL_SESSION_get_peer_chain(sess) orelse return error.NoChain;
+    pub fn getServerNameIndication(self: Client, allocator: *std.mem.Allocator) !?[]const u8 {
+        _ = self;
+        _ = allocator;
+        // TODO: Implement SNI
+        return null;
     }
 
-    pub fn close(self: *TlsClient) void {
+    pub fn close(self: *Client) void {
         c.wolfSSL_free(self.ssl);
         self.* = undefined;
     }
@@ -207,18 +211,18 @@ pub const TlsClient = struct {
     pub const ReadError = error{WolfSSL};
     pub const WriteError = error{WolfSSL};
 
-    pub const Reader = std.io.Reader(TlsClient, ReadError, read);
-    pub const Writer = std.io.Writer(TlsClient, WriteError, write);
+    pub const Reader = std.io.Reader(Client, ReadError, read);
+    pub const Writer = std.io.Writer(Client, WriteError, write);
 
-    pub fn reader(self: TlsClient) Reader {
+    pub fn reader(self: Client) Reader {
         return .{ .context = self };
     }
 
-    pub fn writer(self: TlsClient) Writer {
+    pub fn writer(self: Client) Writer {
         return .{ .context = self };
     }
 
-    pub fn read(self: TlsClient, buffer: []u8) ReadError!usize {
+    pub fn read(self: Client, buffer: []u8) ReadError!usize {
         const read_len = c.wolfSSL_read(self.ssl, buffer.ptr, @intCast(c_int, buffer.len));
         if (read_len < 0) {
             try wolfCheck(c.wolfSSL_get_error(self.ssl, read_len));
@@ -226,13 +230,17 @@ pub const TlsClient = struct {
         return @intCast(usize, read_len);
     }
 
-    pub fn write(self: TlsClient, buffer: []const u8) WriteError!usize {
+    pub fn write(self: Client, buffer: []const u8) WriteError!usize {
         const write_len = c.wolfSSL_write(self.ssl, buffer.ptr, @intCast(c_int, buffer.len));
         if (write_len < 0) {
             try wolfCheck(c.wolfSSL_get_error(self.ssl, write_len));
         }
         return @intCast(usize, write_len);
     }
+};
+
+pub const Certificate = struct {
+    dummy: u8 = undefined,
 };
 
 fn makeWolfError(err_code: c_int) error{WolfSSL} {
