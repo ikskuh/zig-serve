@@ -57,10 +57,11 @@ pub fn accept(self: *TlsCore, socket: *network.Socket) !Client {
     // c.wolfSSL_set_verify(ssl, c.SSL_VERIFY_PEER | c.SSL_VERIFY_FAIL_IF_NO_PEER_CERT, null);
     c.wolfSSL_set_verify(ssl, c.SSL_VERIFY_PEER, verifyFn);
 
+    c.wolfSSL_SetIOReadCtx(ssl, socket);
+    c.wolfSSL_SetIOWriteCtx(ssl, socket);
+
     // Establish TLS connection */
     while (true) {
-        c.wolfSSL_SetIOReadCtx(ssl, socket);
-        c.wolfSSL_SetIOWriteCtx(ssl, socket);
         const ret = c.wolfSSL_accept(ssl);
 
         if (ret == c.SSL_SUCCESS)
@@ -208,8 +209,8 @@ pub const Client = struct {
         self.* = undefined;
     }
 
-    pub const ReadError = error{WolfSSL};
-    pub const WriteError = error{WolfSSL};
+    pub const ReadError = Error;
+    pub const WriteError = Error;
 
     pub const Reader = std.io.Reader(Client, ReadError, read);
     pub const Writer = std.io.Writer(Client, WriteError, write);
@@ -243,7 +244,15 @@ pub const Certificate = struct {
     dummy: u8 = undefined,
 };
 
-fn makeWolfError(err_code: c_int) error{WolfSSL} {
+pub const Error = error{
+    InputOutput,
+    WouldBlock,
+    ConnectionResetByPeer,
+    Signal,
+    Unknown,
+};
+
+fn makeWolfError(err_code: c_int) Error {
     var name_buf: [c.WOLFSSL_MAX_ERROR_SZ + 1]u8 = undefined;
     const error_name = std.mem.sliceTo(
         @as(?[*:0]const u8, c.wolfSSL_ERR_error_string(std.math.cast(c_ulong, -err_code) catch 0, &name_buf)) orelse "unknown",
@@ -255,10 +264,19 @@ fn makeWolfError(err_code: c_int) error{WolfSSL} {
         error_enum,
         error_name,
     });
-    return error.WolfSSL;
+    return switch (error_enum orelse .UNKNOWN) {
+        wolfSSL_ErrorCodes.WOLFSSL_CBIO_ERR_GENERAL => return error.InputOutput,
+        wolfSSL_ErrorCodes.WOLFSSL_CBIO_ERR_WANT_READ_WRITE => return error.WouldBlock,
+        wolfSSL_ErrorCodes.WOLFSSL_CBIO_ERR_CONN_RST => return error.ConnectionResetByPeer,
+        wolfSSL_ErrorCodes.WOLFSSL_CBIO_ERR_ISR => return error.Signal,
+        wolfSSL_ErrorCodes.WOLFSSL_CBIO_ERR_CONN_CLOSE => return error.ConnectionResetByPeer,
+        wolfSSL_ErrorCodes.WOLFSSL_CBIO_ERR_TIMEOUT => return error.InputOutput,
+
+        else => error.Unknown,
+    };
 }
 
-fn wolfCheck(err_code: c_int) error{WolfSSL}!void {
+fn wolfCheck(err_code: c_int) Error!void {
     if (err_code == c.SSL_SUCCESS)
         return;
     return makeWolfError(err_code);
@@ -318,6 +336,8 @@ fn zigRecv(ssl: ?*c.WOLFSSL, buf: [*c]u8, len: c_int, ctx: ?*c_void) callconv(.C
 }
 
 const wolfSSL_ErrorCodes = enum(c_int) {
+    UNKNOWN = 0, // this is actually "success", but we use it as a flag to coerce the optional to non-null
+
     WOLFSSL_CBIO_ERR_GENERAL = -1,
     WOLFSSL_CBIO_ERR_WANT_READ_WRITE = -2,
     // WOLFSSL_CBIO_ERR_WANT_WRITE = -2,
