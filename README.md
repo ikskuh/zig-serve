@@ -1,5 +1,7 @@
 # zig-serve
 
+![project logo](design/logo.png)
+
 A implementation of several network protocols for Zig:
 
 - HTTP 1.1
