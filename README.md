@@ -7,14 +7,20 @@ A implementation of several network protocols for Zig:
 - Gopher
 - Finger
 
+## Disclaimer
+
+**DO NOT USE THESE SERVER IMPLEMENTATIONS IN PRODUCTION!**
+
+They are very much work-in-progress without any warranty of function or correctness. Don't even think about security right now!
+
 ## Status
 
-| Protocol | Status       |
-| -------- | ------------ |
-| Finger   | Not started  |
-| Gopher   | Experimental |
-| Gemini   | Experimental |
-| HTTP(S)  | Experimental |
+| Protocol | Status          |
+| -------- | --------------- |
+| Finger   | ⏸ Not started   |
+| Gopher   | 🧪 Experimental |
+| Gemini   | 🧪 Experimental |
+| HTTP(S)  | 🧪 Experimental |
 
 _Experimental_ means that there is basic support for the protocol, but no spec compliance has been proven yet.
 
