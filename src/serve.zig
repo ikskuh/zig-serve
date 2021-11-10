@@ -9,6 +9,7 @@ pub const TlsClient = TlsCore.Client;
 
 pub usingnamespace @import("gopher.zig");
 pub usingnamespace @import("gemini.zig");
+pub usingnamespace @import("http.zig");
 
 pub const initTls = TlsCore.startup;
 pub const deinitTls = TlsCore.shutdown;

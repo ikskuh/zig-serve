@@ -71,7 +71,7 @@ pub fn main() !void {
 
             try map.info("Hello, Gopher!");
             try map.info("");
-            try map.info("This gopher server was written in ⚡️Zig⚡️");
+            try map.info("This gopher server was written in ⚡️Zig⚡️.");
             try map.info("");
             try map.print("You requested the path '{s}'", .{context.request.path});
             try map.info("");

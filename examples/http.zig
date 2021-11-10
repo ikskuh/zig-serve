@@ -15,13 +15,12 @@ pub fn main() !void {
     var listener = try serve.HttpListener.init(allocator);
     defer listener.deinit();
 
-    try listener.addEndpoint(.{ .ipv4 = .{ 0, 0, 0, 0 } }, 80);
+    try listener.addEndpoint(.{ .ipv4 = .{ 0, 0, 0, 0 } }, 8080);
     try listener.addSecureEndpoint(
         .{ .ipv4 = .{ 0, 0, 0, 0 } },
-        443,
+        8443,
         "examples/data/cert.pem",
         "examples/data/key.pem",
-        .{},
     );
 
     try listener.start();
@@ -31,17 +30,62 @@ pub fn main() !void {
         var context = try listener.getContext();
         defer context.deinit();
 
-        try context.response.setStatusCode(.ok);
-        try context.response.setHeader("Content-Type", "text/plain");
+        if (std.mem.eql(u8, context.request.url, "/favicon.ico")) {
+            try context.response.setStatusCode(.ok);
+            try context.response.setHeader("Content-Type", "image/vnd.microsoft.icon");
 
-        var stream = try context.response.writer();
-        try stream.writeAll("Hello, World!\r\n");
-        try stream.print("You requested the url {}", .{context.request.url});
-        try stream.writeAll("Other headers are:\n");
+            const writer = try context.response.writer();
+            try writer.writeAll(@embedFile("data/favicon.ico"));
+        } else if (std.mem.eql(u8, context.request.url, "/source.zig")) {
+            try context.response.setStatusCode(.ok);
+            try context.response.setHeader("Content-Type", "text/zig");
 
-        var it = context.response.headers.iterator();
-        while (it.next()) |header| {
-            try stream.print("{s}: {s}", .{ header.key_ptr.*, header.value_ptr.* });
+            const writer = try context.response.writer();
+            try writer.writeAll(@embedFile(@src().file));
+        } else {
+            try context.response.setStatusCode(.ok);
+            try context.response.setHeader("Content-Type", "text/html");
+
+            var stream = try context.response.writer();
+
+            try stream.writeAll(
+                \\<!doctype html>
+                \\<html lang="en">
+                \\<head>
+                \\  <meta charset="UTF-8">
+                \\  <title>Zig Demo Server</title>
+                \\</head>
+                \\<body>
+                \\  <h1>zig-serve</h1>
+                \\  <p>Hello, HTTP world!</p>
+                \\  <p>This http(s) server was written in ⚡️Zig⚡️.</p>
+                \\  <p>Request Info:</p>
+                \\  <p>
+                \\
+            );
+
+            try stream.print("  URL:     <code>{s}</code><br>\n", .{context.request.url});
+            try stream.print("  Method:  <code>{}</code>, <code>{s}</code><br>\n", .{ context.request.method, context.request.method_string });
+            try stream.print("  Version: <code>{s}</code><br>\n", .{context.request.version});
+            try stream.writeAll(
+                \\  </p>
+                \\  <p>Other headers are:</p>
+                \\  <ul>
+            );
+
+            var it = context.request.headers.iterator();
+            while (it.next()) |header| {
+                try stream.print("    <li><code>{s}</code>: <code>{s}</code></li>\n", .{ header.key_ptr.*, header.value_ptr.* });
+            }
+            try stream.writeAll(
+                \\  </ul>
+                \\  <p>Also, check out these awesome links:</p>
+                \\  <ul>
+                \\      <li><a href="/source.zig">Server Source Code</a></li>
+                \\      <li><a href="https://ziglang.org/">Zig Project</a></li>
+                \\  </ul>
+                \\</body>
+            );
         }
     }
 }

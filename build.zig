@@ -24,7 +24,7 @@ pub fn build(b: *std.build.Builder) void {
     wolfSSL.install();
 
     const enable_gopher = b.option(bool, "enable-gopher", "Enables building the gopher example") orelse true;
-    const enable_http = b.option(bool, "enable-http", "Enables building the http example") orelse false;
+    const enable_http = b.option(bool, "enable-http", "Enables building the http example") orelse true;
     const enable_gemini = b.option(bool, "enable-gemini", "Enables building the gemini example") orelse true;
 
     {
@@ -54,6 +54,8 @@ pub fn build(b: *std.build.Builder) void {
         http_exe.setBuildMode(mode);
         http_exe.addPackage(pkgs.serve);
         http_exe.addPackage(pkgs.network);
+        http_exe.linkLibrary(wolfSSL);
+        http_exe.addIncludeDir("vendor/wolfssl");
         http_exe.install();
     }
 
