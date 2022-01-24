@@ -183,7 +183,9 @@ pub const GopherContext = struct {
         self.finalize() catch |e| logger.warn("Failed to finalize connection: {s}", .{@errorName(e)});
 
         self.response.socket.close();
-        self.memory.deinit();
+
+        var copy = self.memory;
+        copy.deinit();
     }
 };
 

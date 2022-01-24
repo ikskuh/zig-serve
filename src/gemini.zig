@@ -214,7 +214,8 @@ pub const GeminiContext = struct {
 
         self.response.ssl.close();
         self.response.socket.close();
-        self.memory.deinit();
+        var copy = self.memory;
+        copy.deinit();
     }
 };
 
