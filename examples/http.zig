@@ -10,7 +10,7 @@ pub fn main() !void {
     try network.init();
     defer network.deinit();
 
-    const allocator = &gpa.allocator;
+    const allocator = gpa.allocator();
 
     var listener = try serve.HttpListener.init(allocator);
     defer listener.deinit();
@@ -42,6 +42,12 @@ pub fn main() !void {
 
             const writer = try context.response.writer();
             try writer.writeAll(@embedFile(@src().file));
+        } else if (std.mem.eql(u8, context.request.url, "/cat")) {
+            try context.response.setStatusCode(.ok);
+            try context.response.setHeader("Content-Type", "image/gif");
+
+            var stream = try context.response.writer();
+            try stream.writeAll(@embedFile("data/cat.gif"));
         } else {
             try context.response.setStatusCode(.ok);
             try context.response.setHeader("Content-Type", "text/html");
@@ -84,6 +90,8 @@ pub fn main() !void {
                 \\      <li><a href="/source.zig">Server Source Code</a></li>
                 \\      <li><a href="https://ziglang.org/">Zig Project</a></li>
                 \\  </ul>
+                \\  <p>Also, look at this picture of a <a href="/cat">cat.gif</a>:</p>
+                \\  <img src="/cat">
                 \\</body>
             );
         }

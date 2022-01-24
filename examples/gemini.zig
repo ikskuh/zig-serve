@@ -13,7 +13,7 @@ pub fn main() !void {
     try serve.initTls();
     defer serve.deinitTls();
 
-    const allocator = &gpa.allocator;
+    const allocator = gpa.allocator();
 
     var listener = try serve.GeminiListener.init(allocator);
     defer listener.deinit();

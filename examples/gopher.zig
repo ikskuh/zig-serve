@@ -10,7 +10,7 @@ pub fn main() !void {
     try network.init();
     defer network.deinit();
 
-    const allocator = &gpa.allocator;
+    const allocator = gpa.allocator();
 
     var listener = try serve.GopherListener.init(allocator);
     defer listener.deinit();

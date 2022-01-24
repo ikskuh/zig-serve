@@ -12,14 +12,14 @@ pub const GeminiListener = struct {
         tls: serve.TlsCore,
     };
 
-    allocator: *std.mem.Allocator,
+    allocator: std.mem.Allocator,
     bindings: std.ArrayList(Binding),
 
     /// Normalize incoming paths for the client, so a query to `"/"`, `"//"` and `""` are equivalent and will all receive
     /// `"/"` as the path.
     normalize_paths: bool = true,
 
-    pub fn init(allocator: *std.mem.Allocator) !GeminiListener {
+    pub fn init(allocator: std.mem.Allocator) !GeminiListener {
         return GeminiListener{
             .allocator = allocator,
             .bindings = std.ArrayList(Binding).init(allocator),
@@ -56,8 +56,8 @@ pub const GeminiListener = struct {
         var temp = std.heap.ArenaAllocator.init(self.allocator);
         defer temp.deinit();
 
-        tls.useCertifcateFile(try temp.allocator.dupeZ(u8, certificate_file)) catch return error.InvalidCertificate;
-        tls.usePrivateKeyFile(try temp.allocator.dupeZ(u8, key_file)) catch return error.InvalidCertificate;
+        tls.useCertifcateFile(try temp.allocator().dupeZ(u8, certificate_file)) catch return error.InvalidCertificate;
+        tls.usePrivateKeyFile(try temp.allocator().dupeZ(u8, key_file)) catch return error.InvalidCertificate;
 
         var bind = Binding{
             .address = target_ip.convertToNetwork(),
@@ -156,7 +156,7 @@ pub const GeminiListener = struct {
         var temp_memory = std.heap.ArenaAllocator.init(self.allocator);
         errdefer temp_memory.deinit();
 
-        const context = try temp_memory.allocator.create(GeminiContext);
+        const context = try temp_memory.allocator().create(GeminiContext);
         context.* = GeminiContext{
             .memory = temp_memory,
             .request = GeminiRequest{
@@ -177,7 +177,7 @@ pub const GeminiListener = struct {
 
         context.request.client_certificate = try context.response.ssl.getPeerCertificate();
 
-        context.request.requested_server_name = try context.response.ssl.getServerNameIndication(&context.memory.allocator);
+        context.request.requested_server_name = try context.response.ssl.getServerNameIndication(context.memory.allocator());
 
         var url_buffer: [2048]u8 = undefined;
 
@@ -189,10 +189,8 @@ pub const GeminiListener = struct {
 
         logger.info("request for {s}", .{url_string});
 
-        const url_string_owned = try context.memory.allocator.dupeZ(u8, url_string);
-
+        const url_string_owned = try context.memory.allocator().dupeZ(u8, url_string);
         context.request.url = try uri.parse(url_string_owned);
-
         return context;
     }
 };
@@ -240,8 +238,8 @@ pub const GeminiResponse = struct {
     status_code: GeminiStatusCode = .success,
     meta: std.ArrayListUnmanaged(u8) = .{},
 
-    fn getAllocator(self: *GeminiResponse) *std.mem.Allocator {
-        return &@fieldParentPtr(GeminiContext, "response", self).memory.allocator;
+    fn getAllocator(self: *GeminiResponse) std.mem.Allocator {
+        return @fieldParentPtr(GeminiContext, "response", self).memory.allocator();
     }
 
     pub fn setStatusCode(self: *GeminiResponse, status_code: GeminiStatusCode) !void {

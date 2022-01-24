@@ -21,7 +21,7 @@ pub fn main() !void {
     try tls_server.useCertifcateFile("examples/data/cert.pem");
     try tls_server.usePrivateKeyFile("examples/data/key.pem");
 
-    const allocator = &gpa.allocator;
+    const allocator = gpa.allocator();
 
     var listener = try network.Socket.create(.ipv4, .tcp);
     defer listener.close();

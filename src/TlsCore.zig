@@ -197,7 +197,7 @@ pub const Client = struct {
         return null;
     }
 
-    pub fn getServerNameIndication(self: Client, allocator: *std.mem.Allocator) !?[]const u8 {
+    pub fn getServerNameIndication(self: Client, allocator: std.mem.Allocator) !?[]const u8 {
         _ = self;
         _ = allocator;
         // TODO: Implement SNI
@@ -283,7 +283,8 @@ fn wolfCheck(err_code: c_int) Error!void {
 }
 
 /// PicoTCP send/receive callbacks */
-fn zigSend(ssl: ?*c.WOLFSSL, buf: [*c]u8, len: c_int, ctx: ?*c_void) callconv(.C) c_int {
+fn zigSend(ssl: ?*c.WOLFSSL, buf: [*c]u8, len: c_int, ctx: ?*anyopaque) callconv(.C) c_int {
+    _ = ctx;
     _ = ssl;
     if (len == 0)
         return 0;
@@ -309,7 +310,8 @@ fn zigSend(ssl: ?*c.WOLFSSL, buf: [*c]u8, len: c_int, ctx: ?*c_void) callconv(.C
     return @intCast(c_int, actual_len);
 }
 
-fn zigRecv(ssl: ?*c.WOLFSSL, buf: [*c]u8, len: c_int, ctx: ?*c_void) callconv(.C) c_int {
+fn zigRecv(ssl: ?*c.WOLFSSL, buf: [*c]u8, len: c_int, ctx: ?*anyopaque) callconv(.C) c_int {
+    _ = ctx;
     _ = ssl;
     if (len == 0)
         return 0;

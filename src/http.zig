@@ -12,14 +12,14 @@ pub const HttpListener = struct {
         tls: ?serve.TlsCore,
     };
 
-    allocator: *std.mem.Allocator,
+    allocator: std.mem.Allocator,
     bindings: std.ArrayList(Binding),
 
     /// Normalize incoming paths for the client, so a query to `"/"`, `"//"` and `""` are equivalent and will all receive
     /// `"/"` as the path.
     normalize_paths: bool = true,
 
-    pub fn init(allocator: *std.mem.Allocator) !HttpListener {
+    pub fn init(allocator: std.mem.Allocator) !HttpListener {
         return HttpListener{
             .allocator = allocator,
             .bindings = std.ArrayList(Binding).init(allocator),
@@ -83,8 +83,8 @@ pub const HttpListener = struct {
         var temp = std.heap.ArenaAllocator.init(self.allocator);
         defer temp.deinit();
 
-        tls.useCertifcateFile(try temp.allocator.dupeZ(u8, certificate_file)) catch return error.InvalidCertificate;
-        tls.usePrivateKeyFile(try temp.allocator.dupeZ(u8, key_file)) catch return error.InvalidCertificate;
+        tls.useCertifcateFile(try temp.allocator().dupeZ(u8, certificate_file)) catch return error.InvalidCertificate;
+        tls.usePrivateKeyFile(try temp.allocator().dupeZ(u8, key_file)) catch return error.InvalidCertificate;
 
         var bind = Binding{
             .address = target_ip.convertToNetwork(),
@@ -186,7 +186,7 @@ pub const HttpListener = struct {
         var temp_memory = std.heap.ArenaAllocator.init(self.allocator);
         errdefer temp_memory.deinit();
 
-        const context = try temp_memory.allocator.create(HttpContext);
+        const context = try temp_memory.allocator().create(HttpContext);
         context.* = HttpContext{
             .memory = temp_memory,
             .socket = client_sock,
@@ -210,7 +210,7 @@ pub const HttpListener = struct {
         if (context.ssl) |ssl| {
             logger.debug("accepted tls connection", .{});
             context.request.client_certificate = try ssl.getPeerCertificate();
-            context.request.requested_server_name = try ssl.getServerNameIndication(&context.memory.allocator);
+            context.request.requested_server_name = try ssl.getServerNameIndication(context.memory.allocator());
 
             try parseRequest(context, ssl.reader());
         } else {
@@ -221,7 +221,7 @@ pub const HttpListener = struct {
     }
 
     fn parseRequest(context: *HttpContext, reader: anytype) !void {
-        var request_line = try reader.readUntilDelimiterAlloc(&context.memory.allocator, '\n', 65536); // allow long URLs
+        var request_line = try reader.readUntilDelimiterAlloc(context.memory.allocator(), '\n', 65536); // allow long URLs
         if (std.mem.endsWith(u8, request_line, "\r")) {
             request_line = request_line[0 .. request_line.len - 1];
         }
@@ -251,7 +251,7 @@ pub const HttpListener = struct {
 
             // Read headers
             while (true) {
-                var header_line = try reader.readUntilDelimiterAlloc(&context.memory.allocator, '\n', 65536); // allow long URLs
+                var header_line = try reader.readUntilDelimiterAlloc(context.memory.allocator(), '\n', 65536); // allow long URLs
                 if (std.mem.endsWith(u8, header_line, "\r")) {
                     header_line = header_line[0 .. header_line.len - 1];
                 }
@@ -264,7 +264,7 @@ pub const HttpListener = struct {
                 const key = std.mem.trim(u8, header_line[0..index], whitespace);
                 const value = std.mem.trim(u8, header_line[index + 1 ..], whitespace);
 
-                try context.request.headers.put(&context.memory.allocator, key, value);
+                try context.request.headers.put(context.memory.allocator(), key, value);
             }
         } else {
             // We're done parsing the request, this is everything available. We don't have headers
@@ -299,7 +299,9 @@ pub const HttpContext = struct {
             ssl.close();
         }
         self.socket.close();
-        self.memory.deinit();
+
+        var copy = self.memory;
+        copy.deinit();
     }
 };
 
@@ -359,7 +361,6 @@ pub const HttpResponse = struct {
 
         // TODO: Use a non-casesensitive hash map!
         const gop = try self.headers.getOrPut(allocator, header);
-
         if (gop.found_existing) {
             const old_val = gop.value_ptr.*;
             gop.value_ptr.* = try allocator.dupe(u8, value);
@@ -386,13 +387,14 @@ pub const HttpResponse = struct {
         return @fieldParentPtr(HttpContext, "response", self);
     }
 
-    fn getAllocator(self: *HttpResponse) *std.mem.Allocator {
-        return &self.getContext().memory.allocator;
+    fn getAllocator(self: *HttpResponse) std.mem.Allocator {
+        return self.getContext().memory.allocator();
     }
 
     fn writeHeaders(self: *HttpResponse) !void {
         var stream = HttpResponse.Writer{ .context = self };
         const ctx = self.getContext();
+
         if (ctx.request.version.eql(HttpVersion.@"HTTP/0.9")) {
             // No headers for HTTP/0.9
             return;
@@ -409,6 +411,14 @@ pub const HttpResponse = struct {
             @enumToInt(self.status_code),
             reason_phrase,
         });
+
+        var iter = self.headers.iterator();
+        while (iter.next()) |kv| {
+            try stream.print("{s}: {s}\r\n", .{
+                kv.key_ptr.*,
+                kv.value_ptr.*,
+            });
+        }
 
         try stream.writeAll("\r\n");
     }

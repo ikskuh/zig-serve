@@ -10,14 +10,14 @@ pub const GopherListener = struct {
         socket: ?network.Socket,
     };
 
-    allocator: *std.mem.Allocator,
+    allocator: std.mem.Allocator,
     bindings: std.ArrayList(Binding),
 
     /// Normalize incoming paths for the client, so a query to `"/"`, `"//"` and `""` are equivalent and will all receive
     /// `"/"` as the path.
     normalize_paths: bool = true,
 
-    pub fn init(allocator: *std.mem.Allocator) !GopherListener {
+    pub fn init(allocator: std.mem.Allocator) !GopherListener {
         return GopherListener{
             .allocator = allocator,
             .bindings = std.ArrayList(Binding).init(allocator),
@@ -143,7 +143,7 @@ pub const GopherListener = struct {
 
         var temp_arena = std.heap.ArenaAllocator.init(self.allocator);
 
-        const context = try temp_arena.allocator.create(GopherContext);
+        const context = try temp_arena.allocator().create(GopherContext);
 
         context.* = GopherContext{
             .memory = temp_arena,
@@ -153,7 +153,7 @@ pub const GopherListener = struct {
         errdefer context.memory.deinit();
 
         context.request = GopherRequest{
-            .path = try context.memory.allocator.dupeZ(u8, path),
+            .path = try context.memory.allocator().dupeZ(u8, path),
         };
 
         context.response = GopherResponse{
