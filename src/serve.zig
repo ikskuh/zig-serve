@@ -28,3 +28,10 @@ pub const IP = union(enum) {
         };
     }
 };
+
+pub const defaults = struct {
+    pub const gopher_port = 70;
+    pub const gemini_port = 1965;
+    pub const http_port = 80;
+    pub const https_port = 443;
+};

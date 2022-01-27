@@ -261,38 +261,43 @@ pub fn GopherMap(comptime Writer: type) type {
             });
         }
 
-        pub const Entry = struct {
-            kind: EntryKind,
-            display: []const u8,
-            selector: []const u8,
-            hostname: ?[]const u8 = null,
-            port: ?u16 = null,
-        };
-
-        pub const EntryKind = enum(u8) {
-            text = '0', // Text file
-            submenu = '1', // Gopher submenu
-            ccso_nameserver = '2', // CCSO Nameserver
-            error_code = '3', // Error code returned by a Gopher server to indicate failure
-            bin_hex = '4', // BinHex-encoded file (primarily for Macintosh computers)
-            dos_file = '5', // DOS file
-            uuencoded = '6', // uuencoded file
-            full_text_search = '7', // Gopher full-text search
-            telnet = '8', // Telnet
-            binary = '9', // Binary file
-            alternate_server = '+', // Mirror or alternate server (for load balancing or in case of primary server downtime)
-            gif = 'g', // GIF file
-            image = 'I', // Image file
-            telnet_3270 = 'T', // Telnet 3270
-            // gopher+ types
-            bitmap = ':', // Bitmap image
-            movie = ';', // Movie file
-            sound = '<', // Sound file
-            // Non-canonical types
-            document = 'd', // Doc. Seen used alongside PDF's and .DOC's
-            html = 'h', // HTML file
-            informational = 'i', // Informational message, widely used.[23]
-            wav = 's', // Sound file (especially the WAV format)
-        };
+        pub const Entry = GopherMapShared.Entry;
+        pub const EntryKind = GopherMapShared.EntryKind;
     };
 }
+
+pub const GopherMapShared = struct {
+    pub const Entry = struct {
+        kind: EntryKind,
+        display: []const u8,
+        selector: []const u8,
+        hostname: ?[]const u8 = null,
+        port: ?u16 = null,
+    };
+
+    pub const EntryKind = enum(u8) {
+        text = '0', // Text file
+        submenu = '1', // Gopher submenu
+        ccso_nameserver = '2', // CCSO Nameserver
+        error_code = '3', // Error code returned by a Gopher server to indicate failure
+        bin_hex = '4', // BinHex-encoded file (primarily for Macintosh computers)
+        dos_file = '5', // DOS file
+        uuencoded = '6', // uuencoded file
+        full_text_search = '7', // Gopher full-text search
+        telnet = '8', // Telnet
+        binary = '9', // Binary file
+        alternate_server = '+', // Mirror or alternate server (for load balancing or in case of primary server downtime)
+        gif = 'g', // GIF file
+        image = 'I', // Image file
+        telnet_3270 = 'T', // Telnet 3270
+        // gopher+ types
+        bitmap = ':', // Bitmap image
+        movie = ';', // Movie file
+        sound = '<', // Sound file
+        // Non-canonical types
+        document = 'd', // Doc. Seen used alongside PDF's and .DOC's
+        html = 'h', // HTML file
+        informational = 'i', // Informational message, widely used.[23]
+        wav = 's', // Sound file (especially the WAV format)
+    };
+};
