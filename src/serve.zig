@@ -15,6 +15,8 @@ pub const initTls = TlsCore.startup;
 pub const deinitTls = TlsCore.shutdown;
 
 pub const IP = union(enum) {
+    pub const any_v4 = @This(){ .ipv4 = .{ 0, 0, 0, 0 } };
+
     ipv4: [4]u8,
     ipv6: void,
     // host: []const u8,
