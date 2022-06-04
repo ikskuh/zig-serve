@@ -27,6 +27,22 @@ pub const IP = union(enum) {
             .ipv6 => @panic("not implemented yet!"),
         };
     }
+
+    pub fn parse(string: []const u8) !IP {
+        const addr = try std.net.Address.parseIp(string, 0);
+        return switch (addr.any.family) {
+            std.os.AF.INET => {
+                const out_ptr = std.mem.asBytes(&addr.in.sa.addr);
+                return IP{ .ipv4 = out_ptr.* };
+            },
+
+            std.os.AF.INET6 => {
+                @panic("unsupported");
+            },
+
+            else => return error.UnsupportedFormat,
+        };
+    }
 };
 
 pub const defaults = struct {

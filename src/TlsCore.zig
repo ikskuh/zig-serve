@@ -255,7 +255,7 @@ pub const Error = error{
 fn makeWolfError(err_code: c_int) Error {
     var name_buf: [c.WOLFSSL_MAX_ERROR_SZ + 1]u8 = undefined;
     const error_name = std.mem.sliceTo(
-        @as(?[*:0]const u8, c.wolfSSL_ERR_error_string(std.math.cast(c_ulong, -err_code) catch 0, &name_buf)) orelse "unknown",
+        @as(?[*:0]const u8, c.wolfSSL_ERR_error_string(std.math.cast(c_ulong, -err_code) orelse 0, &name_buf)) orelse "unknown",
         0,
     );
     const error_enum = std.meta.intToEnum(wolfSSL_ErrorCodes, err_code) catch @as(?wolfSSL_ErrorCodes, null);
