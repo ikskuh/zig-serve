@@ -312,7 +312,7 @@ pub const HttpRequest = struct {
     url: []const u8,
     client_certificate: ?serve.TlsCore.Certificate,
     requested_server_name: ?[]const u8,
-    headers: std.StringHashMapUnmanaged([]const u8) = .{},
+    headers: CaseInsenitiveStringHashMapUnmanaged([]const u8) = .{},
 
     fn getContext(self: *HttpRequest) *HttpContext {
         return &@fieldParentPtr(HttpContext, "request", self);
@@ -510,3 +510,45 @@ pub const HttpStatusCode = enum(u16) {
     http_version_not_supported = 505, // HTTP Version Not Supported
     _,
 };
+
+pub const CaseInsensitiveStringContext = struct {
+    pub fn hash(self: @This(), s: []const u8) u64 {
+        _ = self;
+        return hashString(s);
+    }
+    pub fn eql(self: @This(), a: []const u8, b: []const u8) bool {
+        _ = self;
+        return std.ascii.eqlIgnoreCase(a, b);
+    }
+
+    fn hashString(s: []const u8) u64 {
+        var hasher = std.hash.Wyhash.init(0);
+        var buffer: [128]u8 = undefined;
+        var i: usize = 0;
+        while (i < s.len) : (i += buffer.len) {
+            const source = s[i..std.math.min(s.len, i + buffer.len)];
+            std.mem.copy(u8, &buffer, s);
+            for (buffer[0..source.len]) |*c| {
+                c.* = std.ascii.toLower(c.*);
+            }
+            hasher.update(buffer[0..source.len]);
+        }
+        return hasher.final();
+    }
+};
+
+pub fn CaseInsenitiveStringHashMapUnmanaged(comptime T: type) type {
+    return std.HashMapUnmanaged([]const u8, T, CaseInsensitiveStringContext, std.hash_map.default_max_load_percentage);
+}
+
+test "CaseInsenitiveStringHashMapUnmanaged" {
+    var hm = CaseInsenitiveStringHashMapUnmanaged(u32){};
+    defer hm.deinit(std.testing.allocator);
+
+    try hm.put(std.testing.allocator, "Host", 42);
+
+    try std.testing.expectEqual(@as(?u32, 42), hm.get("Host"));
+    try std.testing.expectEqual(@as(?u32, 42), hm.get("host"));
+    try std.testing.expectEqual(@as(?u32, 42), hm.get("HOST"));
+    try std.testing.expectEqual(@as(?u32, 42), hm.get("hOsT"));
+}
