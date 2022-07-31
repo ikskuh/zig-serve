@@ -181,7 +181,7 @@ pub const HttpListener = struct {
         var client_sock: network.Socket = try sock.accept();
         errdefer client_sock.close();
 
-        logger.debug("accepted tcp connection from {}", .{client_sock.getRemoteEndPoint()});
+        logger.debug("accepted tcp connection from {!}", .{client_sock.getRemoteEndPoint()});
 
         var temp_memory = std.heap.ArenaAllocator.init(self.allocator);
         errdefer temp_memory.deinit();
@@ -232,7 +232,7 @@ pub const HttpListener = struct {
         const url = tokens.next() orelse return error.MissingUrl;
         const maybe_version = tokens.next();
 
-        std.log.info("{s} {s} {s}", .{ method, url, maybe_version });
+        std.log.info("{s} {s} {?s}", .{ method, url, maybe_version });
 
         context.request.method = std.meta.stringToEnum(HttpMethod, method);
         context.request.method_string = method;
@@ -293,7 +293,7 @@ pub const HttpContext = struct {
     pub fn deinit(self: *HttpContext) void {
         self.finalize() catch |e| logger.warn("Failed to finalize connection: {s}", .{@errorName(e)});
 
-        logger.debug("closing tcp connection to {}", .{self.socket.getRemoteEndPoint()});
+        logger.debug("closing tcp connection to {!}", .{self.socket.getRemoteEndPoint()});
 
         if (self.ssl) |*ssl| {
             ssl.close();

@@ -259,7 +259,7 @@ fn makeWolfError(err_code: c_int) Error {
         0,
     );
     const error_enum = std.meta.intToEnum(wolfSSL_ErrorCodes, err_code) catch @as(?wolfSSL_ErrorCodes, null);
-    logger.err("WolfSSL Error {}/{}: {s}", .{
+    logger.err("WolfSSL Error {}/{?}: {s}", .{
         err_code,
         error_enum,
         error_name,
