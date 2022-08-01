@@ -20,7 +20,7 @@ pub fn main() !void {
     try listener.start();
     defer listener.stop();
 
-    std.log.info("gemini server ready.", .{});
+    std.log.info("gopher server ready.", .{});
 
     while (true) {
         var context = try listener.getContext();
