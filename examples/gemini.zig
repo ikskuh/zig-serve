@@ -73,9 +73,9 @@ pub fn main() !void {
             inline for (std.meta.fields(serve.Url)) |fld| {
                 const field_format = switch (fld.field_type) {
                     u16 => "{d}",
-                    ?u16 => "{d}",
+                    ?u16 => "{?d}",
                     []const u8 => "{s}",
-                    ?[]const u8 => "{s}",
+                    ?[]const u8 => "{?s}",
                     else => @compileError("Unsupported field type: " ++ @typeName(fld.field_type)),
                 };
                 try stream.print("* {s}: " ++ field_format ++ "\n", .{ fld.name, @field(context.request.url, fld.name) });

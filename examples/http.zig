@@ -71,8 +71,8 @@ pub fn main() !void {
             );
 
             try stream.print("  URL:     <code>{s}</code><br>\n", .{context.request.url});
-            try stream.print("  Method:  <code>{}</code>, <code>{s}</code><br>\n", .{ context.request.method, context.request.method_string });
-            try stream.print("  Version: <code>{s}</code><br>\n", .{context.request.version});
+            try stream.print("  Method:  <code>{?}</code>, <code>{s}</code><br>\n", .{ context.request.method, context.request.method_string });
+            try stream.print("  Version: <code>{}</code><br>\n", .{context.request.version});
             try stream.writeAll(
                 \\  </p>
                 \\  <p>Other headers are:</p>

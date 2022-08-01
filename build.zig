@@ -9,16 +9,16 @@ const sdk_root = sdkRoot();
 const pkgs = struct {
     const serve = std.build.Pkg{
         .name = "serve",
-        .path = .{ .path = "src/serve.zig" },
+        .source = .{ .path = "src/serve.zig" },
         .dependencies = &.{ network, uri },
     };
     const network = std.build.Pkg{
         .name = "network",
-        .path = .{ .path = "vendor/network/network.zig" },
+        .source = .{ .path = "vendor/network/network.zig" },
     };
     const uri = std.build.Pkg{
         .name = "uri",
-        .path = .{ .path = "vendor/uri/uri.zig" },
+        .source = .{ .path = "vendor/uri/uri.zig" },
     };
 };
 
