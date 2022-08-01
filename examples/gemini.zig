@@ -36,7 +36,7 @@ pub fn main() !void {
 
         try context.response.setStatusCode(.success);
 
-        const requested_path = context.request.url.path orelse "";
+        const requested_path = context.request.url.path;
 
         if (std.mem.eql(u8, requested_path, "/source.zig")) {
             try context.response.setMeta("text/zig");
